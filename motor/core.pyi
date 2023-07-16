@@ -30,7 +30,7 @@ import pymongo.mongo_client
 from bson import CodecOptions
 from pymongo import WriteConcern, ReadPreference
 from pymongo.change_stream import ChangeStream
-from pymongo.client_session import ClientSession
+from pymongo.client_session import ClientSession, TransactionOptions
 from pymongo.database import Database
 from pymongo.encryption import ClientEncryption
 from pymongo.read_concern import ReadConcern
@@ -99,7 +99,12 @@ class AgnosticClient(AgnosticBaseProperties):
     secondaries: ReadOnlyProperty
     server_info: AsyncRead
     topology_description: ReadOnlyProperty
-    start_session: AsyncCommand
+    def start_session(
+        self,
+        causal_consistency: Optional[bool] = None,
+        default_transaction_options: Optional[TransactionOptions] = None,
+        snapshot: Optional[bool] = False,
+    ) -> Coroutine[Any, Any, ClientSession]: ...
 
     _io_loop: Optional[Any]
     _framework: Any
@@ -138,7 +143,7 @@ class AgnosticClientSession(AgnosticBase):
     __motor_class_name__: str
     __delegate_class__: ClientSession
 
-    commit_transaction: AsyncCommand
+    async def commit_transaction(self) -> None: ...
     abort_transaction: AsyncCommand
     end_session: AsyncCommand
     cluster_time: ReadOnlyProperty
@@ -232,28 +237,28 @@ class AgnosticCollection(AgnosticBaseProperties):
         session: Optional[ClientSession] = None,
         comment: Optional[Any] = None,
         let: Optional[Mapping] = None,
-    ) -> Coroutine[Any, Any, BulkWriteResult]: ...
+    ) -> BulkWriteResult: ...
     async def count_documents(
         self,
         filter: Mapping[str, Any],
         session: Optional[ClientSession] = None,
         comment: Optional[Any] = None,
         **kwargs: Any,
-    ) -> Coroutine[Any, Any, int]: ...
+    ) -> int: ...
     async def create_index(
         self,
         keys: _IndexKeyHint,
         session: Optional[ClientSession] = None,
         comment: Optional[Any] = None,
         **kwargs: Any,
-    ) -> Coroutine[Any, Any, str]: ...
+    ) -> str: ...
     async def create_indexes(
         self,
         indexes: Sequence[IndexModel],
         session: Optional[ClientSession] = None,
         comment: Optional[Any] = None,
         **kwargs: Any,
-    ) -> Coroutine[Any, Any, List[str]]: ...
+    ) -> List[str]: ...
     async def delete_many(
         self,
         filter: Mapping[str, Any],
@@ -262,7 +267,7 @@ class AgnosticCollection(AgnosticBaseProperties):
         session: Optional[ClientSession] = None,
         let: Optional[Mapping[str, Any]] = None,
         comment: Optional[Any] = None,
-    ) -> Coroutine[Any, Any, DeleteResult]: ...
+    ) -> DeleteResult: ...
     async def delete_one(
         self,
         filter: Mapping[str, Any],
@@ -271,7 +276,7 @@ class AgnosticCollection(AgnosticBaseProperties):
         session: Optional[ClientSession] = None,
         let: Optional[Mapping[str, Any]] = None,
         comment: Optional[Any] = None,
-    ) -> Coroutine[Any, Any, DeleteResult]: ...
+    ) -> DeleteResult: ...
     async def distinct(
         self,
         key: str,
@@ -279,29 +284,29 @@ class AgnosticCollection(AgnosticBaseProperties):
         session: Optional[ClientSession] = None,
         comment: Optional[Any] = None,
         **kwargs: Any,
-    ) -> Coroutine[Any, Any, List[Any]]: ...
+    ) -> List[Any]: ...
     async def drop(
         self,
         session: Optional[ClientSession] = None,
         comment: Optional[Any] = None,
         encrypted_fields: Optional[Mapping[str, Any]] = None,
-    ) -> Coroutine[Any, Any, None]: ...
+    ) -> None: ...
     async def drop_index(
         self,
         index_or_name: _IndexKeyHint,
         session: Optional[ClientSession] = None,
         comment: Optional[Any] = None,
         **kwargs: Any,
-    ) -> Coroutine[Any, Any, None]: ...
+    ) -> None: ...
     async def drop_indexes(
         self,
         session: Optional[ClientSession] = None,
         comment: Optional[Any] = None,
         **kwargs: Any,
-    ) -> Coroutine[Any, Any, None]: ...
+    ) -> None: ...
     async def estimated_document_count(
         self, comment: Optional[Any] = None, **kwargs: Any
-    ) -> Coroutine[Any, Any, int]: ...
+    ) -> int: ...
     async def find_one(
         self,
         filter: Optional[Any] = None,
@@ -325,11 +330,7 @@ class AgnosticCollection(AgnosticBaseProperties):
         comment: Optional[str] = None,
         session: Optional[Any] = None,
         allow_disk_use: Optional[bool] = None,
-    ) -> Mapping[str, Any]:
-        f"""
-        {find_one_doc} QWEQWEQWEQWE
-        """
-        ...
+    ) -> Mapping[str, Any]: ...
     async def find_one_and_delete(
         self,
         filter: Mapping[str, Any],
@@ -340,7 +341,7 @@ class AgnosticCollection(AgnosticBaseProperties):
         let: Optional[Mapping[str, Any]] = None,
         comment: Optional[Any] = None,
         **kwargs: Any,
-    ) -> Coroutine[Any, Any, Mapping[str, Any]]: ...
+    ) -> Mapping[str, Any]: ...
     async def find_one_and_replace(
         self,
         filter: Mapping[str, Any],
@@ -354,7 +355,7 @@ class AgnosticCollection(AgnosticBaseProperties):
         let: Optional[Mapping[str, Any]] = None,
         comment: Optional[Any] = None,
         **kwargs: Any,
-    ) -> Coroutine[Any, Any, Mapping[str, Any]]: ...
+    ) -> Mapping[str, Any]: ...
     async def find_one_and_update(
         self,
         filter: Mapping[str, Any],
@@ -369,37 +370,35 @@ class AgnosticCollection(AgnosticBaseProperties):
         let: Optional[Mapping[str, Any]] = None,
         comment: Optional[Any] = None,
         **kwargs: Any,
-    ) -> Coroutine[Any, Any, Mapping[str, Any]]: ...
-    full_name: ReadOnlyProperty
+    ) -> Mapping[str, Any]: ...
     async def index_information(
         self, session: Optional[ClientSession] = None, comment: Optional[Any] = None
-    ) -> Coroutine[Any, Any, MutableMapping[str, Any]]: ...
+    ) -> MutableMapping[str, Any]: ...
     async def insert_many(
         self,
-        documents: Iterable[Union[Mapping[str, Any], RawBSONDocument]],
+        documents: Sequence[Union[Mapping[str, Any], RawBSONDocument]],
         ordered: bool = True,
         bypass_document_validation: bool = False,
         session: Optional[ClientSession] = None,
         comment: Optional[Any] = None,
-    ) -> Coroutine[Any, Any, InsertManyResult]: ...
+    ) -> InsertManyResult: ...
     async def insert_one(
         self,
         document: Union[Mapping[str, Any], RawBSONDocument],
         bypass_document_validation: bool = False,
         session: Optional[ClientSession] = None,
         comment: Optional[Any] = None,
-    ) -> Coroutine[Any, Any, InsertOneResult]: ...
-    name: ReadOnlyProperty
+    ) -> InsertOneResult: ...
     async def options(
         self, session: Optional[ClientSession] = None, comment: Optional[Any] = None
-    ) -> Coroutine[Any, Any, MutableMapping[str, Any]]: ...
+    ) -> MutableMapping[str, Any]: ...
     async def rename(
         self,
         new_name: str,
         session: Optional[ClientSession] = None,
         comment: Optional[Any] = None,
         **kwargs: Any,
-    ) -> Coroutine[Any, Any, MutableMapping[str, Any]]: ...
+    ) -> MutableMapping[str, Any]: ...
     async def replace_one(
         self,
         filter: Mapping[str, Any],
@@ -411,7 +410,7 @@ class AgnosticCollection(AgnosticBaseProperties):
         session: Optional[ClientSession] = None,
         let: Optional[Mapping[str, Any]] = None,
         comment: Optional[Any] = None,
-    ) -> Coroutine[Any, Any, UpdateResult]: ...
+    ) -> UpdateResult: ...
     async def update_many(
         self,
         filter: Mapping[str, Any],
@@ -424,7 +423,7 @@ class AgnosticCollection(AgnosticBaseProperties):
         session: Optional[ClientSession] = None,
         let: Optional[Mapping[str, Any]] = None,
         comment: Optional[Any] = None,
-    ) -> Coroutine[Any, Any, UpdateResult]: ...
+    ) -> UpdateResult: ...
     async def update_one(
         self,
         filter: Mapping[str, Any],
@@ -437,7 +436,7 @@ class AgnosticCollection(AgnosticBaseProperties):
         session: Optional[ClientSession] = None,
         let: Optional[Mapping[str, Any]] = None,
         comment: Optional[Any] = None,
-    ) -> Coroutine[Any, Any, UpdateResult]: ...
+    ) -> UpdateResult: ...
     async def with_options(
         self,
         codec_options: Optional[CodecOptions] = None,
