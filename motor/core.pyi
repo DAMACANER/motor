@@ -2,12 +2,10 @@ import datetime
 from _typeshed import NoneType
 from typing import (
     Any,
-    Awaitable,
     Collection,
     Iterable,
     Mapping,
     MutableMapping,
-    Protocol,
     Sequence,
     TypeVar,
     Type,
@@ -44,14 +42,11 @@ from pymongo.results import (
     DeleteResult,
 )
 from bson.raw_bson import RawBSONDocument
-from motor.docstrings import find_one_doc
 from .metaprogramming import (
     AsyncCommand,
     AsyncRead,
-    AsyncWrite,
     DelegateMethod,
     ReadOnlyProperty,
-    Async,
 )
 
 T = TypeVar("T")
@@ -104,7 +99,7 @@ class AgnosticClient(AgnosticBaseProperties):
         causal_consistency: Optional[bool] = None,
         default_transaction_options: Optional[TransactionOptions] = None,
         snapshot: Optional[bool] = False,
-    ) -> Coroutine[Any, Any, ClientSession]: ...
+    ) -> Coroutine[Any, Any, AgnosticClientSession]: ...
 
     _io_loop: Optional[Any]
     _framework: Any
@@ -144,8 +139,8 @@ class AgnosticClientSession(AgnosticBase):
     __delegate_class__: ClientSession
 
     async def commit_transaction(self) -> None: ...
-    abort_transaction: AsyncCommand
-    end_session: AsyncCommand
+    async def abort_transaction(self) -> None: ...
+    async def end_session(self) -> None: ...
     cluster_time: ReadOnlyProperty
     has_ended: ReadOnlyProperty
     in_transaction: ReadOnlyProperty
@@ -386,7 +381,7 @@ class AgnosticCollection(AgnosticBaseProperties):
         self,
         document: Union[Mapping[str, Any], RawBSONDocument],
         bypass_document_validation: bool = False,
-        session: Optional[ClientSession] = None,
+        session: Union[Optional[ClientSession], Optional[AgnosticClientSession]] = None,
         comment: Optional[Any] = None,
     ) -> InsertOneResult: ...
     async def options(
@@ -433,7 +428,7 @@ class AgnosticCollection(AgnosticBaseProperties):
         collation: Optional[Collation] = None,
         array_filters: Optional[Sequence[Mapping[str, Any]]] = None,
         hint: Optional[_IndexKeyHint] = None,
-        session: Optional[ClientSession] = None,
+        session: Union[Optional[ClientSession], Optional[AgnosticClientSession]] = None,
         let: Optional[Mapping[str, Any]] = None,
         comment: Optional[Any] = None,
     ) -> UpdateResult: ...
@@ -482,7 +477,7 @@ class AgnosticCollection(AgnosticBaseProperties):
         allow_disk_use: Optional[bool] = None,
     ) -> Type[AgnosticCursor]: ...
     def find_raw_batches(self, *args, **kwargs) -> Any: ...
-    def aggregate(self, pipeline: Any, *args, **kwargs) -> Any: ...
+    def aggregate(self, pipeline: Any, *args: Any, **kwargs: Any) -> AgnosticCommandCursor: ...
     def aggregate_raw_batches(self, pipeline: Any, **kwargs: Any) -> Any: ...
     def watch(
         self,
